@@ -2,8 +2,8 @@ package com.hcl.cowin.service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.google.api.core.ApiFuture;
@@ -12,12 +12,22 @@ import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
 import com.google.cloud.firestore.WriteResult;
 import com.google.firebase.cloud.FirestoreClient;
+import com.google.gson.Gson;
 import com.hcl.cowin.constant.ResponseMsg;
 import com.hcl.cowin.response.UserResponse;
+import com.hcl.dto.Centers;
+import com.hcl.dto.CowinObjectDto;
+import com.hcl.dto.CowinSession;
 import com.hcl.dto.UserDto;
 
 @Service
 public class ManageUsersService {
+
+	@Autowired
+	private ManageCowinApiService manageCowinApiService;
+
+	@Autowired
+	private EmailService emailService;
 
 	public UserResponse createUser(UserDto user) {
 		UserResponse response = new UserResponse();
@@ -25,7 +35,7 @@ public class ManageUsersService {
 
 			Firestore dbConnection = FirestoreClient.getFirestore();
 			ApiFuture<WriteResult> collectionApiFuture = dbConnection.collection("Users")
-					.document((user.getDate() + user.getDistrict())).set(user);
+					.document((user.getDate().replaceAll("\\/","") + user.getDistrict())).set(user);
 			String timeStamp = collectionApiFuture.get().getUpdateTime().toString();
 			if (timeStamp != null && !timeStamp.isEmpty()) {
 				response.setResponseCode(200);
@@ -55,34 +65,84 @@ public class ManageUsersService {
 			List<QueryDocumentSnapshot> documents = querySnapshot.getDocuments();
 			for (QueryDocumentSnapshot document : documents) {
 
-				UserDto dto = new UserDto();
-				if (document.get("email") != null)
-					dto.setEmail(document.get("email").toString());
-				if (document.get("district") != null)
-					dto.setDistrict(document.get("district").toString());
-				if (document.get("payment") != null)
-					dto.setPayment(document.get("payment").toString());
-				if (document.get("date") != null)
-					dto.setDate(document.get("date").toString());
-				if (document.get("flag") != null)
-					dto.setFlag((Boolean) document.get("flag"));
-				if (document.get("type") != null)
-					dto.setType(document.get("type").toString());
-				users.add(dto);
+				if (document.get("flag") != null && !((Boolean) document.get("flag"))) {
+					UserDto dto = new UserDto();
+					if (document.get("email") != null)
+						dto.setEmail(document.get("email").toString());
+					if (document.get("district") != null)
+						dto.setDistrict(document.get("district").toString());
+					if (document.get("payment") != null)
+						dto.setPayment(document.get("payment").toString());
+					if (document.get("date") != null)
+						dto.setDate(document.get("date").toString());
+					if (document.get("flag") != null)
+						dto.setFlag((Boolean) document.get("flag"));
+					if (document.get("type") != null)
+						dto.setType(document.get("type").toString());
+					users.add(dto);
+				}
 			}
-
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
-		System.out.println(users);
+		System.out.println(" user recieved => " + users.size());
 		return users;
 	}
 
-	public UserResponse updateUserDetail() {
-		UserDto user = new UserDto();
+	public void updateUserDetail() {
 
-		// Map<String,Object> users = getAllNotifiableUsers();
+	try {
+		List<UserDto> users = getAllNotifiableUsers();
+		List<CowinObjectDto> filterdCenterDetail = new ArrayList<>();
+		for (UserDto userDetail : users) {
 
-		return createUser(user);
+			Centers centers = manageCowinApiService.processCowinApi(userDetail.getDistrict(), userDetail.getDate());
+
+			if (centers != null && centers.getCenters().size() > 0) {
+		
+				for (CowinObjectDto center : centers.getCenters()) {
+
+					if (userDetail.getPayment().equals(center.getFee_type())) {
+
+						if (center.getSessions() != null)
+							for (CowinSession session : center.getSessions()) {
+
+								if (userDetail.getType().equals(session.getMin_age_limit())) {
+
+									filterdCenterDetail.add(center);
+								}
+							}
+					}
+				}
+			}
+			if (filterdCenterDetail != null && filterdCenterDetail.size() > 0) {
+				String mailBody = createMailBody(filterdCenterDetail);
+				System.out.println("===========> sending to email ========== " + userDetail.getEmail());
+				emailService.sendMail(userDetail.getEmail(), "Vaccine Center Update", mailBody);
+				filterdCenterDetail.clear();
+			}
+			Gson gson = new Gson();
+			String tmp = gson.toJson(userDetail);
+			UserDto myObject = gson.fromJson(tmp, UserDto.class);
+			myObject.setFlag(true);
+			createUser(myObject);
+		}
+	}catch(Exception ex) {
+		ex.printStackTrace();
+	}
+
+	}
+
+	private String createMailBody(List<CowinObjectDto> filterdCenterDetail) {
+		String body = "<tr><td>Address</td><td>Name</td><td>District Name</td><td>Pincode</td></tr>";
+		for (CowinObjectDto obj : filterdCenterDetail) {
+
+			body = body + "<tr><td>" + obj.getAddress() + "</td><td>" + obj.getName() + "</td><td>"
+					+ obj.getDistrict_name() + "</td><td>" + obj.getPincode() + "</td>";
+		}
+
+		body = "<html><head></head><body><table border='2px'>" + body + "</table></body></html>";
+		
+		return body;
 	}
 }

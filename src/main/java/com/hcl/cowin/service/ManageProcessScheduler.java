@@ -9,15 +9,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class ManageProcessScheduler {
 	
-	/*
-	 * @Autowired private ManageUsersService manageUserService;
-	 * 
-	 * @Scheduled(fixedDelay = 5000) public void process() {
-	 * System.out.println("Method executed at every 5 seconds. Current time is :: "
-	 * + new Date());
-	 * 
-	 * manageUserService.updateUserDetail();
-	 * 
-	 * }
-	 */
+	@Autowired
+	private ManageUsersService manageUserService;
+	
+	@Scheduled(fixedDelay = 5000)
+	public void process() {
+		System.out.println("Method executed at every 5 seconds. Current time is :: " + new Date());
+		
+	//	manageUserService.updateUserDetail();
+		
+	}
 }

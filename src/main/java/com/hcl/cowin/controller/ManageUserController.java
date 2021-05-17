@@ -20,18 +20,18 @@ public class ManageUserController {
 	public UserResponse createUsers(@RequestBody UserDto user) {
 
 		/*
-		 * UserDto user = new UserDto(); user.setDistrict("test");
-		 * user.setEmail("deepak@gmail.com"); user.setPayment("free");
-		 * user.setType("any"); user.setDate("05/14/2021");
+		 * UserDto user = new UserDto(); user.setDistrict("670");
+		 * user.setEmail("deepak@gmail.com"); user.setPayment("Free");
+		 * user.setType("45"); user.setDate("14/5/2021");
 		 */
+		 
 		return userService.createUser(user);
 
 		
 	}
-	@GetMapping("/test1")
-	public UserResponse getAllUserData() {
-
-		userService.getAllNotifiableUsers();
-		return new UserResponse();
+	@GetMapping("/scheduleUser")
+	public String getAllUserData() {
+		userService.updateUserDetail();
+		return "process completed";
 	}
 }
