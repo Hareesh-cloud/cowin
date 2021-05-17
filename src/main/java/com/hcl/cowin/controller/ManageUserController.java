@@ -2,6 +2,7 @@ package com.hcl.cowin.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -15,7 +16,7 @@ public class ManageUserController {
 	@Autowired
 	private ManageUsersService userService;
 
-	@GetMapping("/createuser")
+	@PostMapping("/createuser")
 	public UserResponse createUsers(@RequestBody UserDto user) {
 
 		/*
