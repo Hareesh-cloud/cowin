@@ -1,16 +1,13 @@
 package com.hcl.dto;
 
-import com.hcl.cowin.constant.PaymentType;
-import com.hcl.cowin.constant.UserGroupType;
-
-
 public class UserDto {
 
 	private String email;
-	private String 	district;
-	//private PaymentType payment;
-//	private UserGroupType type;
+	private String district;
+	private String payment;
+	private String type;
 	private String date;
+	private boolean flag;
 	
 	public String getDate() {
 		return date;
@@ -30,6 +27,24 @@ public class UserDto {
 	}
 	public void setDistrict(String district) {
 		this.district = district;
+	}
+	public String getPayment() {
+		return payment;
+	}
+	public void setPayment(String payment) {
+		this.payment = payment;
+	}
+	public String getType() {
+		return type;
+	}
+	public void setType(String type) {
+		this.type = type;
+	}
+	public boolean isFlag() {
+		return flag;
+	}
+	public void setFlag(boolean flag) {
+		this.flag = flag;
 	}
 
 }
