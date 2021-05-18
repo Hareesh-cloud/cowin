@@ -1,6 +1,8 @@
 package com.hcl.cowin.service;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +37,7 @@ public class ManageUsersService {
 
 			Firestore dbConnection = FirestoreClient.getFirestore();
 			ApiFuture<WriteResult> collectionApiFuture = dbConnection.collection("Users")
-					.document((user.getDate().replaceAll("\\/","") + user.getDistrict())).set(user);
+					.document((user.getDate().replaceAll("\\/", "") + user.getDistrict() + user.getEmail().replaceAll("[^A-Za-z0-9]",""))).set(user);
 			String timeStamp = collectionApiFuture.get().getUpdateTime().toString();
 			if (timeStamp != null && !timeStamp.isEmpty()) {
 				response.setResponseCode(200);
@@ -58,14 +60,16 @@ public class ManageUsersService {
 
 		List<UserDto> users = new ArrayList<>();
 		try {
-
+			String dateInString = new SimpleDateFormat("dd/MM/yyyy").format(new Date());
+			System.out.println(dateInString);
 			Firestore dbConnection = FirestoreClient.getFirestore();
 			ApiFuture<QuerySnapshot> futurdoc = dbConnection.collection("Users").get();
 			QuerySnapshot querySnapshot = futurdoc.get();
 			List<QueryDocumentSnapshot> documents = querySnapshot.getDocuments();
 			for (QueryDocumentSnapshot document : documents) {
 
-				if (document.get("flag") != null && !((Boolean) document.get("flag"))) {
+				if (document.get("flag") != null && !((Boolean) document.get("flag"))
+						&& dateInString.equals(document.get("date"))) {
 					UserDto dto = new UserDto();
 					if (document.get("email") != null)
 						dto.setEmail(document.get("email").toString());
@@ -91,45 +95,45 @@ public class ManageUsersService {
 
 	public void updateUserDetail() {
 
-	try {
-		List<UserDto> users = getAllNotifiableUsers();
-		List<CowinObjectDto> filterdCenterDetail = new ArrayList<>();
-		for (UserDto userDetail : users) {
+		try {
+			List<UserDto> users = getAllNotifiableUsers();
+			List<CowinObjectDto> filterdCenterDetail = new ArrayList<>();
+			for (UserDto userDetail : users) {
 
-			Centers centers = manageCowinApiService.processCowinApi(userDetail.getDistrict(), userDetail.getDate());
+				Centers centers = manageCowinApiService.processCowinApi(userDetail.getDistrict(), userDetail.getDate());
 
-			if (centers != null && centers.getCenters().size() > 0) {
-		
-				for (CowinObjectDto center : centers.getCenters()) {
+				if (centers != null && centers.getCenters().size() > 0) {
 
-					if (userDetail.getPayment().equals(center.getFee_type())) {
+					for (CowinObjectDto center : centers.getCenters()) {
 
-						if (center.getSessions() != null)
-							for (CowinSession session : center.getSessions()) {
+						if (userDetail.getPayment().equals(center.getFee_type())) {
 
-								if (userDetail.getType().equals(session.getMin_age_limit())) {
+							if (center.getSessions() != null)
+								for (CowinSession session : center.getSessions()) {
 
-									filterdCenterDetail.add(center);
+									if (userDetail.getType().equals(session.getMin_age_limit())) {
+
+										filterdCenterDetail.add(center);
+									}
 								}
-							}
+						}
 					}
 				}
+				if (filterdCenterDetail != null && filterdCenterDetail.size() > 0) {
+					String mailBody = createMailBody(filterdCenterDetail);
+					System.out.println("===========> sending to email ========== " + userDetail.getEmail());
+					emailService.sendMail(userDetail.getEmail(), "Vaccine Center Update", mailBody);
+					filterdCenterDetail.clear();
+				}
+				Gson gson = new Gson();
+				String tmp = gson.toJson(userDetail);
+				UserDto myObject = gson.fromJson(tmp, UserDto.class);
+				myObject.setFlag(true);
+				createUser(myObject);
 			}
-			if (filterdCenterDetail != null && filterdCenterDetail.size() > 0) {
-				String mailBody = createMailBody(filterdCenterDetail);
-				System.out.println("===========> sending to email ========== " + userDetail.getEmail());
-				emailService.sendMail(userDetail.getEmail(), "Vaccine Center Update", mailBody);
-				filterdCenterDetail.clear();
-			}
-			Gson gson = new Gson();
-			String tmp = gson.toJson(userDetail);
-			UserDto myObject = gson.fromJson(tmp, UserDto.class);
-			myObject.setFlag(true);
-			createUser(myObject);
+		} catch (Exception ex) {
+			ex.printStackTrace();
 		}
-	}catch(Exception ex) {
-		ex.printStackTrace();
-	}
 
 	}
 
@@ -142,7 +146,7 @@ public class ManageUsersService {
 		}
 
 		body = "<html><head></head><body><table border='2px'>" + body + "</table></body></html>";
-		
+
 		return body;
 	}
 }
